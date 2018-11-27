@@ -40,9 +40,9 @@ type shoporder struct {
 }
 
 const (
-	sFileName  = "./supplier.csv"
-	cFileName  = "./condition.csv"
-	soFileName = "./shoporder.csv"
+	sFileName  = "supplier.csv"
+	cFileName  = "condition.csv"
+	soFileName = "shoporder.csv"
 )
 
 // New returns an instance of a GraphGenerator
@@ -151,9 +151,9 @@ func (g *GraphGenerator) run(cmd string) error {
 // Reset resets any previously generated data
 func (g *GraphGenerator) Reset() error {
 	for _, filename := range [3]string{sFileName, cFileName, soFileName} {
-		err := os.Remove(filename)
+		err := os.Remove("/Users/crushonly/neo4j/import/" + filename)
 		if err != nil {
-			return err
+			log.Println(err)
 		}
 	}
 
@@ -162,10 +162,12 @@ func (g *GraphGenerator) Reset() error {
 		return err
 	}
 
-	res, err := session.Run("MATCH (n) DETACH DELETE n", nil)
+	res, err := session.Run(`MATCH (n) DETACH DELETE n`, nil)
+
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	summary, err := res.Summary()
 	if err != nil {
 		log.Fatal(err)
@@ -178,20 +180,20 @@ func (g *GraphGenerator) Reset() error {
 
 func makeTestData() error {
 	sfile, cfile, sofile, close, err := makeFiles()
-	defer close()
 	if err != nil {
 		return err
 	}
+	defer close()
 
 	sWriter := bufio.NewWriter(sfile)
 	cWriter := bufio.NewWriter(cfile)
 	soWriter := bufio.NewWriter(sofile)
 
 	sWriter.WriteString("Id,Name\n")
-	cWriter.WriteString("Id,SupplierId,BolRef,Value,EAN,Type,Start Date,End Date\n")
-	soWriter.WriteString("Id,ConditionId,ShipId,Currency,Price,EAN,Match Date\n")
+	cWriter.WriteString("Id,SupplierId,BolRef,Value,EAN,Type,Start Date,EndDate\n")
+	soWriter.WriteString("Id,ConditionId,ShipId,Currency,Price,EAN,MatchDate\n")
 
-	for i := 0; i < 120; i++ {
+	for i := 0; i < 2; i++ {
 		sID, supplier := createSupplier()
 		_, err = sWriter.WriteString(fmt.Sprintf("%s,%s\n", sID, supplier))
 		if err != nil {
@@ -211,7 +213,7 @@ func makeTestData() error {
 			}
 
 			price := fake.Price(8, 120)
-			numOrders := fake.Number(30, 4000)
+			numOrders := fake.Number(40000, 50000)
 			for numOrders > 0 {
 				order := createShopOrder(price, cdn)
 				_, err = soWriter.WriteString(fmt.Sprintf(
@@ -234,18 +236,18 @@ func makeTestData() error {
 }
 
 func makeFiles() (sfile, cfile, shfile *os.File, closer func(), err error) {
-	sfile, err = os.Create(sFileName)
+	sfile, err = os.Create("/Users/crushonly/neo4j/import/" + sFileName)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 
-	cfile, err = os.Create(cFileName)
+	cfile, err = os.Create("/Users/crushonly/neo4j/import/" + cFileName)
 	if err != nil {
 		sfile.Close()
 		return nil, nil, nil, nil, err
 	}
 
-	shfile, err = os.Create(soFileName)
+	shfile, err = os.Create("/Users/crushonly/neo4j/import/" + soFileName)
 	if err != nil {
 		sfile.Close()
 		cfile.Close()
