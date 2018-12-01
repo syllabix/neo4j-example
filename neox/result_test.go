@@ -125,12 +125,13 @@ func BenchmarkResult_ToStruct(b *testing.B) {
 		},
 	}
 	for _, tt := range tests {
+		r := &Result{
+			Result: tt.fields.Result,
+			m:      tt.fields.m,
+			set:    tt.fields.set,
+		}
+
 		b.Run(tt.name, func(b *testing.B) {
-			r := &Result{
-				Result: tt.fields.Result,
-				m:      tt.fields.m,
-				set:    tt.fields.set,
-			}
 			for i := 0; i < b.N; i++ {
 				r.ToStruct(tt.args.dest)
 			}
