@@ -9,6 +9,7 @@ import (
 	"github.com/neo4j/neo4j-go-driver/neo4j"
 	"github.com/syllabix/neo4j-example/data"
 	"github.com/syllabix/neo4j-example/data/graphdb"
+	"github.com/syllabix/neo4j-example/neox"
 )
 
 var bolref string
@@ -16,8 +17,16 @@ var seed bool
 var clear bool
 var dbtype string
 var supplierID string
+var nx bool
 
 var generator data.Generator
+
+type calc struct {
+	SupplierName string  `neo:"s.name"`
+	CdnValue     float64 `neo:"value"`
+	CdnType      string  `neo:"type"`
+	OrderPrice   float64 `neo:"price"`
+}
 
 func init() {
 	flag.StringVar(&bolref, "bolref", "", "the bolref of the condition you would like to calculate")
@@ -25,18 +34,20 @@ func init() {
 	flag.BoolVar(&seed, "seed", false, "generate mock data to run benchmarks with")
 	flag.BoolVar(&clear, "clear", false, "delete all nodes and relationships in the database")
 	flag.StringVar(&dbtype, "dbtype", "neo4j", "the database type to work with")
-
+	flag.BoolVar(&nx, "neox", false, "run with neox")
 	flag.Parse()
 }
 
 func main() {
 
-	driver, err := neo4j.NewDriver("bolt://localhost:7687",
+	driver, err := neox.NewDriver("bolt://localhost:7687",
 		neo4j.BasicAuth("neo4j", "admin123", ""))
+
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
+
 	defer driver.Close()
 
 	generator := graphdb.New(driver)
@@ -50,9 +61,6 @@ func main() {
 		if err != nil {
 			log.Printf("[ERROR] - %v", err)
 		}
-		// session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
-		// 	return nil, buildGraph(tx)
-		// })
 		return
 	}
 
@@ -64,18 +72,20 @@ func main() {
 		return
 	}
 
-	session, err := driver.Session(neo4j.AccessModeWrite)
+	session, err := driver.Sessionx(neo4j.AccessModeWrite)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
 	defer session.Close()
 
+	clc := new(calc)
+
 	if bolref != "" {
 		start := time.Now()
 
 		fmt.Println("Calculating total value of condition for BolRef", bolref)
-		result, err := session.Run(`
+		result, err := session.Runx(`
 		MATCH (c:Condition)<-[:MATCHED_TO]-(order)
 		WHERE c.bolref = $bolref
 		RETURN c.value, c.type, toFloat(order.price) as price`,
@@ -90,11 +100,12 @@ func main() {
 		var total float64
 		for result.Next() {
 			r := result.Record()
-			// fmt.Println(r.Values())
-			// fmt.Println(r.Keys())
+
 			cVal := r.GetByIndex(0).(float64)
 			cType := r.GetByIndex(1).(string)
 			oVal := r.GetByIndex(2).(float64)
+
+			result.ToStruct(clc)
 
 			switch cType {
 			case "percent":
@@ -124,10 +135,10 @@ func main() {
 		fmt.Println()
 		fmt.Println("Calculating total value of conditions for supplier id", supplierID)
 
-		result, err := session.Run(`
+		result, err := session.Runx(`
 		MATCH (s:Supplier)-[:AGREED_TO]->(c:Condition)<-[:MATCHED_TO]-(order)
 		WHERE s.id = $supplierId
-		RETURN s.name, c.value, c.type, toFloat(order.price) as price`,
+		RETURN s.name, c.value as value, c.type as type, toFloat(order.price) as price`,
 			map[string]interface{}{
 				"supplierId": supplierID,
 			})
@@ -136,21 +147,21 @@ func main() {
 			log.Fatal(err)
 		}
 
-		var sname string
+		// var sname string
 		var total float64
 		for result.Next() {
-			r := result.Record()
-			sname = r.GetByIndex(0).(string)
-			cVal := r.GetByIndex(1).(float64)
-			cType := r.GetByIndex(2).(string)
-			oVal := r.GetByIndex(3).(float64)
 
-			switch cType {
+			err = result.ToStruct(clc)
+			if err != nil {
+				log.Println(err)
+			}
+
+			switch clc.CdnType {
 			case "percent":
-				t := oVal * float64(cVal)
+				t := clc.OrderPrice * clc.CdnValue
 				total += t
 			case "fixed":
-				total += cVal
+				total += clc.CdnValue
 			}
 		}
 
@@ -162,7 +173,7 @@ func main() {
 		}
 
 		fmt.Printf("\n=========================================================\n")
-		fmt.Printf("%s has conditions with a total value of\n€%.2f\n", sname, total)
+		fmt.Printf("%s has conditions with a total value of\n€%.2f\n", clc.SupplierName, total)
 		fmt.Printf("=========================================================\n")
 
 		fmt.Printf("Calculation Duration: %v\n\n", duration)

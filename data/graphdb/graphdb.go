@@ -193,7 +193,7 @@ func makeTestData() error {
 	cWriter.WriteString("Id,SupplierId,BolRef,Value,EAN,Type,Start Date,EndDate\n")
 	soWriter.WriteString("Id,ConditionId,ShipId,Currency,Price,EAN,MatchDate\n")
 
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 32; i++ {
 		sID, supplier := createSupplier()
 		_, err = sWriter.WriteString(fmt.Sprintf("%s,%s\n", sID, supplier))
 		if err != nil {
@@ -213,7 +213,7 @@ func makeTestData() error {
 			}
 
 			price := fake.Price(8, 120)
-			numOrders := fake.Number(40000, 50000)
+			numOrders := fake.Number(60, 320)
 			for numOrders > 0 {
 				order := createShopOrder(price, cdn)
 				_, err = soWriter.WriteString(fmt.Sprintf(

@@ -12,3 +12,4 @@
 *.out
 
 .DS_STORE
+.vscode
