@@ -10,12 +10,24 @@ import (
 
 const neotag = "neo"
 
+var (
+	// ErrInvalidArg is returned when provided arguments are invalid
+	ErrInvalidArg = errors.New("the provided argument is invalid")
+)
+
+// A Result is returned from successful
+// calls to a Session.Runx, it exposes all of the standard
+// driver interface methods as well as its various extensions
 type Result struct {
 	neo4j.Result
 	m   map[string]int
 	set bool
 }
 
+// ToStruct attempts to assign the values of the current
+// result record to fields of the provided struct.
+// The argument must be a pointer to a struct or an
+// neox.ErrInvalidArg will be returned
 func (r *Result) ToStruct(dest interface{}) error {
 	if r.Err() != nil {
 		return r.Err()
@@ -23,7 +35,7 @@ func (r *Result) ToStruct(dest interface{}) error {
 
 	v := reflect.ValueOf(dest)
 	if v.Kind() != reflect.Ptr {
-		return errors.New("scan destination is not a pointer")
+		return errors.New("destination is not a pointer")
 	}
 
 	e := v.Elem()
@@ -31,7 +43,7 @@ func (r *Result) ToStruct(dest interface{}) error {
 	if !r.set {
 		r.m = make(map[string]int)
 		if e.Kind() != reflect.Struct {
-			return errors.New("scan destination is not a struct")
+			return errors.New("destination is not a struct")
 		}
 
 		for i := 0; i < e.NumField(); i++ {
