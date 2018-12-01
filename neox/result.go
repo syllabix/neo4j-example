@@ -56,14 +56,14 @@ func (r *Result) ToStruct(dest interface{}) error {
 					field.Set(reflect.ValueOf(r))
 					continue
 				} else {
-					return fmt.Errorf("Cannot set struct field \"%s\" of type %s with record %s of type %s",
+					return fmt.Errorf("cannot set struct field \"%s\" of type %s with record %s of type %s",
 						e.Type().Field(idx).Name,
 						e.Type().Field(idx).Type.Name(),
 						name,
 						recVal.Type().Name())
 				}
 			} else {
-				return fmt.Errorf("Struct field \"%s\" cannot be set", e.Type().Field(idx).Name)
+				return fmt.Errorf("struct field \"%s\" cannot be set", e.Type().Field(idx).Name)
 			}
 		}
 	}
